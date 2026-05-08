@@ -27,6 +27,7 @@ A custom integration for Hatch Rest/Restore Sound Machines. This project is most
 - adjust light brightness and color
 - turn rest plus on and off
 - turn clock on and off and adjust brightness (Rest+ 2nd gen/Restore 3) 
+- enable, disable, and edit wake times for existing alarms (Restore, Restore 2, Restore 3)
 - turn Toddler Lock on and off (Rest+ 2nd gen) 
 - monitor device charging status (Rest+ 2nd gen)
 
@@ -48,6 +49,13 @@ If you receive an error, please go through these steps;
 You can now use the following services:
 * Rest+ 2nd gen: activate scene to start a defined favorite
   * if you add new favorites reload the integration to update available scenes or restart ha
+* Restore/Restore 2/Restore 3: use the alarm switch to enable or disable an existing alarm
+  * use the alarm wake time entity to change when the alarm sound starts; the sunrise light start shifts with it
+  * when Hatch omits an alarm `endTime`, wake time is derived from `startTime` plus the alarm sunrise duration
+  * automations can set wake time with the built-in `time.set_value` action, for example `time: "06:45:00"`
+  * automations and Developer Tools can set repeat days with the `ha_hatch.set_alarm_weekdays` action
+  * alarm changes made in the Hatch app are refreshed automatically every 10 minutes; reload the integration to see them immediately
+  * alarm creation, alarm deletion, and alarm sound/light editing are not supported
 * Media player: Select sound mode
   * Possible options here are: Stream, PinkNoise, Dryer, Ocean, Wind, Rain, Bird, Crickets, Brahms, Twinkle, RockABye
 * Media player: Set volume
