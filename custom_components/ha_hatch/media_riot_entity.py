@@ -79,7 +79,7 @@ class MediaRiotEntity(HatchEntity, MediaPlayerEntity):
 
     @property
     def state(self) -> MediaPlayerState | None:
-        if isinstance(self.rest_device, RestoreV5) and self.rest_device.paused:
+        if isinstance(self.rest_device, RestoreV5) and self.rest_device.is_paused:
             return STATE_PAUSED
         if self.rest_device.is_playing:
             return STATE_PLAYING
@@ -120,7 +120,7 @@ class MediaRiotEntity(HatchEntity, MediaPlayerEntity):
 
     def media_play(self) -> None:
         _LOGGER.debug("media play")
-        if isinstance(self.rest_device, RestoreV5) and self.rest_device.paused:
+        if isinstance(self.rest_device, RestoreV5) and self.rest_device.is_paused:
             self.rest_device.resume_routine()
             return
         if self.rest_device.is_playing:
