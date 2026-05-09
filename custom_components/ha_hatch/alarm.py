@@ -320,7 +320,12 @@ def _is_alarm_unique_id_for_authoritative_device(
     authoritative_alarm_unique_id_prefixes: set[str],
     unique_id_suffix: str,
 ) -> bool:
-    return unique_id.endswith(unique_id_suffix) and any(
-        unique_id.startswith(prefix)
-        for prefix in authoritative_alarm_unique_id_prefixes
-    )
+    if not unique_id.endswith(unique_id_suffix):
+        return False
+
+    reference = alarm_reference_from_unique_id(unique_id, {unique_id_suffix})
+    if reference is None:
+        return False
+
+    thing_name, _alarm_id = reference
+    return alarm_unique_id_prefix(thing_name) in authoritative_alarm_unique_id_prefixes

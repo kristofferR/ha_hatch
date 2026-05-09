@@ -187,7 +187,7 @@ class HatchAlarmRepeat(HatchEntity, SensorEntity):
 
     @property
     def available(self) -> bool:
-        return self._alarm is not None
+        return super().available and self._alarm is not None
 
     @property
     def native_value(self) -> StateType | date | datetime | Decimal:
