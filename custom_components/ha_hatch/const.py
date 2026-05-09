@@ -13,6 +13,7 @@ CONFIG_NUMBERED_PRESET_SCENES_DEFAULT: bool = False
 
 PLATFORMS = [
     Platform.BINARY_SENSOR,
+    Platform.BUTTON,
     Platform.LIGHT,
     Platform.MEDIA_PLAYER,
     Platform.SCENE,
