@@ -226,10 +226,12 @@ class HatchRoutine(HatchEntity, SensorEntity):
         )
         if favorite is None:
             return str(device.current_id)
+        if favorite.get("name"):
+            return favorite["name"]
         steps = favorite.get("steps") or []
         if steps and steps[0].get("name"):
             return steps[0]["name"]
-        return favorite.get("name") or str(device.current_id)
+        return str(device.current_id)
 
 
 class HatchRoutineStep(HatchEntity, SensorEntity):
@@ -265,4 +267,8 @@ class HatchPlaybackState(HatchEntity, SensorEntity):
         device = self.rest_device
         if device is None:
             return None
-        return device.current_playing
+        if isinstance(device, RestoreV5) and device.is_paused:
+            return "paused"
+        if device.is_playing:
+            return "playing"
+        return "idle"

@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import datetime, time, timedelta
 from typing import Any
 
+from homeassistant.util import dt as dt_util
+
 DEFAULT_ALARM_NAME = "alarm default name"
 ALARM_UNIQUE_ID_MARKER = "_alarm_"
 ALARM_WEEKDAY_BITS: dict[str, int] = {
@@ -268,7 +270,7 @@ def _parse_alarm_datetime(value: Any) -> datetime | None:
     except ValueError:
         return None
     if parsed.tzinfo is not None:
-        return parsed.astimezone().replace(tzinfo=None)
+        return dt_util.as_local(parsed).replace(tzinfo=None)
     return parsed
 
 
