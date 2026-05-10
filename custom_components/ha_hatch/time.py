@@ -1,13 +1,10 @@
 from __future__ import annotations
 
 import logging
+from datetime import time
 from typing import Any
 
-from homeassistant.components.switch import (
-    SwitchEntity,
-    SwitchDeviceClass, SwitchEntityDescription,
-)
-from hatch_rest_api import RestPlus, RestIot, RestBaby
+from homeassistant.components.time import TimeEntity, TimeEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -19,6 +16,7 @@ from .alarm import (
     alarm_repeat_attributes,
     alarm_unique_id,
     alarm_unique_id_prefix,
+    alarm_wake_time,
     remove_stale_alarm_entities,
     update_alarm_entity_names,
 )
@@ -26,36 +24,16 @@ from .const import DOMAIN
 from .hatch_entity import HatchEntity
 
 _LOGGER = logging.getLogger(__name__)
-ALARM_UNIQUE_ID_SUFFIX = "_switch"
+ALARM_WAKE_TIME_UNIQUE_ID_SUFFIX = "_wake_time"
 
 
-async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+):
     coordinator: HatchDataUpdateCoordinator = hass.data[DOMAIN]
-    entities = []
-    for rest_device in coordinator.rest_devices:
-        if isinstance(rest_device, RestPlus):
-            entities.append(HatchPowerSwitch(coordinator=coordinator, thing_name=rest_device.thing_name))
-        if isinstance(rest_device, RestIot):
-            entities.append(
-                HatchToddlerLockSwitch(
-                    coordinator=coordinator, thing_name=rest_device.thing_name
-                )
-            )
-        if isinstance(rest_device, RestBaby):
-            entities.append(
-                HatchToddlerLockSwitch(
-                    coordinator=coordinator, thing_name=rest_device.thing_name
-                )
-            )
-            entities.append(
-                HatchPowerSwitch(
-                    coordinator=coordinator, thing_name=rest_device.thing_name
-                )
-            )
-
-    async_add_entities(entities)
-
-    alarm_entities_by_unique_id: dict[str, HatchAlarmSwitch] = {}
+    alarm_entities_by_unique_id: dict[str, HatchAlarmWakeTime] = {}
 
     async def async_reconcile_alarm_entities() -> None:
         new_alarm_entities = []
@@ -73,19 +51,20 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
                 unique_id = alarm_unique_id(
                     rest_device.thing_name,
                     alarm_id,
-                    ALARM_UNIQUE_ID_SUFFIX,
+                    ALARM_WAKE_TIME_UNIQUE_ID_SUFFIX,
                 )
+                wake_time_name = f"{alarm_name} Wake Time"
                 current_alarm_unique_ids.add(unique_id)
-                current_alarm_names[unique_id] = alarm_name
+                current_alarm_names[unique_id] = wake_time_name
                 if alarm_entity := alarm_entities_by_unique_id.get(unique_id):
-                    alarm_entity.update_alarm_name(alarm_name)
+                    alarm_entity.update_alarm_name(wake_time_name)
                     continue
 
-                alarm_entity = HatchAlarmSwitch(
+                alarm_entity = HatchAlarmWakeTime(
                     coordinator=coordinator,
                     thing_name=rest_device.thing_name,
                     alarm_id=alarm_id,
-                    alarm_name=alarm_name,
+                    alarm_name=wake_time_name,
                     unique_id=unique_id,
                 )
                 alarm_entities_by_unique_id[unique_id] = alarm_entity
@@ -98,15 +77,15 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
         remove_stale_alarm_entities(
             hass=hass,
             config_entry=config_entry,
-            domain="switch",
+            domain="time",
             current_alarm_unique_ids=current_alarm_unique_ids,
             authoritative_alarm_unique_id_prefixes=authoritative_alarm_unique_id_prefixes,
-            unique_id_suffix=ALARM_UNIQUE_ID_SUFFIX,
+            unique_id_suffix=ALARM_WAKE_TIME_UNIQUE_ID_SUFFIX,
         )
         update_alarm_entity_names(
             hass=hass,
             config_entry=config_entry,
-            domain="switch",
+            domain="time",
             current_alarm_names=current_alarm_names,
         )
         if new_alarm_entities:
@@ -118,52 +97,10 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
     )
 
 
-class HatchPowerSwitch(HatchEntity, SwitchEntity):
-    entity_description: SwitchEntityDescription(
-        key="power-switch",
-        device_class=SwitchDeviceClass.SWITCH,
-    )
-
-    def __init__(self, coordinator: HatchDataUpdateCoordinator, thing_name: str):
-        super().__init__(coordinator=coordinator, thing_name=thing_name, entity_type="Power Switch")
-
-    @property
-    def is_on(self) -> bool | None:
-        return self.rest_device.is_on
-
-    def turn_on(self, **kwargs):
-        self.rest_device.set_on(True)
-
-    def turn_off(self, **kwargs):
-        self.rest_device.set_on(False)
-
-
-class HatchToddlerLockSwitch(HatchEntity, SwitchEntity):
-    entity_description: SwitchEntityDescription(
-        key="toddler-lock",
-        icon="mdi:human-child",
-        device_class=SwitchDeviceClass.SWITCH,
-    )
-
-    def __init__(self, coordinator: HatchDataUpdateCoordinator, thing_name: str):
-        super().__init__(coordinator=coordinator, thing_name=thing_name, entity_type="Toddler Lock")
-
-    @property
-    def is_on(self) -> bool | None:
-        return self.rest_device.toddler_lock
-
-    def turn_on(self, **kwargs):
-        self.rest_device.set_toddler_lock(True)
-
-    def turn_off(self, **kwargs):
-        self.rest_device.set_toddler_lock(False)
-
-
-class HatchAlarmSwitch(HatchEntity, SwitchEntity):
-    entity_description = SwitchEntityDescription(
-        key="alarm-switch",
+class HatchAlarmWakeTime(HatchEntity, TimeEntity):
+    entity_description = TimeEntityDescription(
+        key="alarm-wake-time",
         icon="mdi:alarm",
-        device_class=SwitchDeviceClass.SWITCH,
     )
 
     def __init__(
@@ -175,7 +112,6 @@ class HatchAlarmSwitch(HatchEntity, SwitchEntity):
         unique_id: str,
     ):
         self._alarm_id = alarm_id
-        self._alarm_display_name = alarm_name
         super().__init__(
             coordinator=coordinator,
             thing_name=thing_name,
@@ -197,29 +133,20 @@ class HatchAlarmSwitch(HatchEntity, SwitchEntity):
         return self._alarm is not None
 
     @property
-    def is_on(self) -> bool | None:
-        alarm = self._alarm
-        if alarm is None:
-            return None
-        return bool(alarm.get("enabled"))
+    def native_value(self) -> time | None:
+        return alarm_wake_time(self._alarm)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         return alarm_repeat_attributes(self._alarm)
 
-    async def async_turn_on(self, **kwargs):
-        await self._async_set_enabled(True)
-
-    async def async_turn_off(self, **kwargs):
-        await self._async_set_enabled(False)
-
-    async def _async_set_enabled(self, enabled: bool) -> None:
-        set_alarm_enabled = getattr(self.rest_device, "set_alarm_enabled", None)
-        if not callable(set_alarm_enabled):
+    async def async_set_value(self, value: time) -> None:
+        set_alarm_wake_time = getattr(self.rest_device, "set_alarm_wake_time", None)
+        if not callable(set_alarm_wake_time):
             raise TypeError(
-                f"{self.rest_device.device_name} does not support alarm switches"
+                f"{self.rest_device.device_name} does not support alarm wake times"
             )
-        await set_alarm_enabled(self._alarm_id, enabled)
+        await set_alarm_wake_time(self._alarm_id, value)
         self.schedule_update_ha_state()
 
     @property

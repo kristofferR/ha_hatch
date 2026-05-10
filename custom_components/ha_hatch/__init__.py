@@ -16,6 +16,13 @@ from .hatch_data_update_coordinator import HatchDataUpdateCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 
+async def async_setup(hass: HomeAssistant, _config):
+    from .services import async_register_services
+
+    async_register_services(hass)
+    return True
+
+
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     hass.data.setdefault(DOMAIN, {})
     email = config_entry.data[CONF_EMAIL]
@@ -33,6 +40,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     await coordinator.async_config_entry_first_refresh()
 
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
+    coordinator.async_start_alarm_refresh()
 
     if not config_entry.update_listeners:
         config_entry.add_update_listener(async_update_options)
