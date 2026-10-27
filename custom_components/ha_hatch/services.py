@@ -7,10 +7,14 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.target import (
-    TargetSelection,
-    async_extract_referenced_entity_ids,
-)
+from homeassistant.helpers.group import expand_entity_ids
+
+try:
+    from homeassistant.helpers import target as target_helper
+except ImportError:
+    from homeassistant.helpers import service as service_helper
+
+    target_helper = None
 
 from .alarm import (
     alarm_reference_from_unique_id,
@@ -74,16 +78,21 @@ def _alarm_targets_from_service_call(
     entity_registry = er.async_get(hass)
     targets: dict[tuple[str, str], tuple[Any, str]] = {}
 
-    selected = async_extract_referenced_entity_ids(
-        hass, TargetSelection(call.data), expand_group=True
-    )
+    if target_helper is None:
+        selected = service_helper.async_extract_referenced_entity_ids(
+            hass, call, expand_group=False
+        )
+    else:
+        selected = target_helper.async_extract_referenced_entity_ids(
+            hass, target_helper.TargetSelection(call.data), expand_group=False
+        )
 
-    for entity_id in selected.referenced:
+    for entity_id in expand_entity_ids(hass, selected.referenced):
         target = _alarm_target_from_entity_id(
             hass,
             entity_registry,
             entity_id,
-            raise_if_not_alarm=True,
+            raise_if_not_alarm=entity_id in selected.referenced,
         )
         if target is not None:
             key, value = target
