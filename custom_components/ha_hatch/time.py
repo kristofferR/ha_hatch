@@ -13,6 +13,7 @@ from . import HatchDataUpdateCoordinator
 from .alarm import (
     alarm_base_names,
     alarm_by_id,
+    alarm_has_valid_wake_times,
     alarm_repeat_attributes,
     alarm_unique_id,
     alarm_unique_id_prefix,
@@ -20,7 +21,6 @@ from .alarm import (
     remove_stale_alarm_entities,
     update_alarm_entity_names,
 )
-from .const import DOMAIN
 from .hatch_entity import HatchEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ):
-    coordinator: HatchDataUpdateCoordinator = hass.data[DOMAIN]
+    coordinator: HatchDataUpdateCoordinator = config_entry.runtime_data
     alarm_entities_by_unique_id: dict[str, HatchAlarmWakeTime] = {}
 
     async def async_reconcile_alarm_entities() -> None:
@@ -130,7 +130,8 @@ class HatchAlarmWakeTime(HatchEntity, TimeEntity):
 
     @property
     def available(self) -> bool:
-        return self._alarm is not None
+        alarm = self._alarm
+        return alarm is not None and alarm_has_valid_wake_times(alarm)
 
     @property
     def native_value(self) -> time | None:

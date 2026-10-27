@@ -252,7 +252,7 @@ def _is_default_alarm_name(alarm_name: str) -> bool:
 
 def _normalize_days_of_week(days_of_week: Any) -> int | None:
     if days_of_week is None:
-        return None
+        return 0
     if isinstance(days_of_week, bool) or not isinstance(days_of_week, int):
         return None
     if days_of_week < 0 or days_of_week > ALARM_WEEKDAYS_MASK:
@@ -268,7 +268,7 @@ def _parse_alarm_datetime(value: Any) -> datetime | None:
     except ValueError:
         return None
     if parsed.tzinfo is not None:
-        return parsed.astimezone().replace(tzinfo=None)
+        return parsed.replace(tzinfo=None)
     return parsed
 
 

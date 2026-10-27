@@ -25,7 +25,6 @@ from .alarm import (
     remove_stale_alarm_entities,
     update_alarm_entity_names,
 )
-from .const import DOMAIN
 from .hatch_entity import HatchEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,9 +32,7 @@ ALARM_REPEAT_UNIQUE_ID_SUFFIX = "_repeat"
 
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
-    hass.data.setdefault(DOMAIN, {})
-
-    coordinator: HatchDataUpdateCoordinator = hass.data[DOMAIN]
+    coordinator: HatchDataUpdateCoordinator = config_entry.runtime_data
     sensor_entities = []
     for rest_device in coordinator.rest_devices:
         if isinstance(rest_device, RestPlus) or isinstance(rest_device, RestIot):

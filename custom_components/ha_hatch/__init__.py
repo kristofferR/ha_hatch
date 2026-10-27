@@ -38,6 +38,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
 
     coordinator: HatchDataUpdateCoordinator = hass.data[DOMAIN]
     await coordinator.async_config_entry_first_refresh()
+    config_entry.runtime_data = coordinator
 
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
     coordinator.async_start_alarm_refresh()
@@ -54,13 +55,13 @@ async def async_update_options(hass: HomeAssistant, config_entry: ConfigEntry):
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     _LOGGER.debug("unload entry")
-    coordinator: HatchDataUpdateCoordinator | None = hass.data.get(DOMAIN)
+    coordinator: HatchDataUpdateCoordinator = config_entry.runtime_data
     unload_ok = await hass.config_entries.async_unload_platforms(
         config_entry, PLATFORMS
     )
     if unload_ok:
-        if coordinator is not None:
-            await coordinator.async_shutdown()
-        hass.data[DOMAIN] = None
+        await coordinator.async_shutdown()
+        if hass.data.get(DOMAIN) is coordinator:
+            hass.data[DOMAIN] = None
 
     return unload_ok

@@ -4,7 +4,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.target import (
@@ -52,11 +52,7 @@ async def _async_set_alarm_weekdays(
     hass: HomeAssistant,
     call: ServiceCall,
 ) -> None:
-    coordinator = hass.data.get(DOMAIN)
-    if not isinstance(coordinator, HatchDataUpdateCoordinator):
-        raise HomeAssistantError("Hatch integration is not loaded")
-
-    alarm_targets = _alarm_targets_from_service_call(hass, coordinator, call)
+    alarm_targets = _alarm_targets_from_service_call(hass, call)
     if not alarm_targets:
         raise ServiceValidationError("Target at least one Hatch alarm entity")
 
@@ -73,7 +69,6 @@ async def _async_set_alarm_weekdays(
 
 def _alarm_targets_from_service_call(
     hass: HomeAssistant,
-    coordinator: HatchDataUpdateCoordinator,
     call: ServiceCall,
 ) -> dict[tuple[str, str], tuple[Any, str]]:
     entity_registry = er.async_get(hass)
@@ -85,8 +80,8 @@ def _alarm_targets_from_service_call(
 
     for entity_id in selected.referenced:
         target = _alarm_target_from_entity_id(
+            hass,
             entity_registry,
-            coordinator,
             entity_id,
             raise_if_not_alarm=True,
         )
@@ -96,8 +91,8 @@ def _alarm_targets_from_service_call(
 
     for entity_id in selected.indirectly_referenced:
         target = _alarm_target_from_entity_id(
+            hass,
             entity_registry,
-            coordinator,
             entity_id,
             raise_if_not_alarm=False,
         )
@@ -109,8 +104,8 @@ def _alarm_targets_from_service_call(
 
 
 def _alarm_target_from_entity_id(
+    hass: HomeAssistant,
     entity_registry: er.EntityRegistry,
-    coordinator: HatchDataUpdateCoordinator,
     entity_id: str,
     *,
     raise_if_not_alarm: bool,
@@ -131,7 +126,13 @@ def _alarm_target_from_entity_id(
         return None
 
     thing_name, alarm_id = alarm_reference
-    rest_device = coordinator.rest_device_by_thing_name(thing_name)
+    config_entry = hass.config_entries.async_get_entry(entry.config_entry_id)
+    coordinator = getattr(config_entry, "runtime_data", None)
+    rest_device = (
+        coordinator.rest_device_by_thing_name(thing_name)
+        if isinstance(coordinator, HatchDataUpdateCoordinator)
+        else None
+    )
     if rest_device is None:
         if raise_if_not_alarm:
             raise ServiceValidationError(

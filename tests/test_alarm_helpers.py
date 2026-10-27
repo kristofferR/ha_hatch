@@ -130,6 +130,25 @@ class AlarmHelperTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "must be a list"):
             alarm_helpers.normalize_alarm_weekdays(62)
 
+    def test_missing_or_null_repeat_mask_means_once(self):
+        for alarm in ({}, {"daysOfWeek": None}):
+            with self.subTest(alarm=alarm):
+                attributes = alarm_helpers.alarm_repeat_attributes(alarm)
+                self.assertEqual(attributes["repeat"], "Once")
+                self.assertEqual(attributes["weekdays"], [])
+
+    def test_offset_qualified_wake_times_preserve_wall_clock(self):
+        for offset in ("-04:00", "+05:30", "Z"):
+            with self.subTest(offset=offset):
+                alarm = {
+                    "startTime": f"2026-05-08T07:00:00{offset}",
+                    "endTime": f"2026-05-08T07:30:00{offset}",
+                }
+                self.assertEqual(alarm_helpers.alarm_wake_time(alarm), time(7, 30))
+                alarm["endTime"] = None
+                alarm["steps"] = [{"name": "Sunrise", "color": {"duration": 1800}}]
+                self.assertEqual(alarm_helpers.alarm_wake_time(alarm), time(7, 30))
+
     def test_alarm_wake_time_reads_end_time_and_derives_missing_end_time(self):
         self.assertEqual(
             alarm_helpers.alarm_wake_time(
