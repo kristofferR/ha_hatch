@@ -19,27 +19,23 @@ async def async_setup_entry(
     coordinator: HatchDataUpdateCoordinator = hass.data[DOMAIN]
     entities: list[ButtonEntity] = []
     for rest_device in coordinator.rest_devices:
-        if isinstance(rest_device, RestoreV5):
-            entities.append(
-                HatchStopRoutineButton(
-                    coordinator=coordinator, thing_name=rest_device.thing_name
+        if not isinstance(rest_device, RestoreV5):
+            continue
+        # Published API versions may not include the routine controls yet.
+        for button_type, method, state_attributes in (
+            (HatchStopRoutineButton, "stop_routine", ("current_playing",)),
+            (HatchSnoozeAlarmButton, "snooze_alarm", ("current_playing", "is_snoozed")),
+            (HatchAdvanceStepButton, "advance_step", ("can_advance_step",)),
+            (HatchSwapRoutineButton, "swap_routine", ("can_swap_routine",)),
+        ):
+            if callable(getattr(rest_device, method, None)) and all(
+                hasattr(rest_device, attribute) for attribute in state_attributes
+            ):
+                entities.append(
+                    button_type(
+                        coordinator=coordinator, thing_name=rest_device.thing_name
+                    )
                 )
-            )
-            entities.append(
-                HatchSnoozeAlarmButton(
-                    coordinator=coordinator, thing_name=rest_device.thing_name
-                )
-            )
-            entities.append(
-                HatchAdvanceStepButton(
-                    coordinator=coordinator, thing_name=rest_device.thing_name
-                )
-            )
-            entities.append(
-                HatchSwapRoutineButton(
-                    coordinator=coordinator, thing_name=rest_device.thing_name
-                )
-            )
     async_add_entities(entities)
 
 

@@ -267,7 +267,7 @@ class HatchPlaybackState(HatchEntity, SensorEntity):
         device = self.rest_device
         if device is None:
             return None
-        if isinstance(device, RestoreV5) and device.is_paused:
+        if isinstance(device, RestoreV5) and getattr(device, "is_paused", False):
             return "paused"
         if device.is_playing:
             return "playing"

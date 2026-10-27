@@ -72,14 +72,19 @@ class MediaRiotEntity(HatchEntity, MediaPlayerEntity):
             | MediaPlayerEntityFeature.VOLUME_STEP
             | MediaPlayerEntityFeature.SELECT_SOURCE
         )
-        if isinstance(self.rest_device, RestoreV5):
+        if (
+            isinstance(self.rest_device, RestoreV5)
+            and hasattr(self.rest_device, "is_paused")
+            and callable(getattr(self.rest_device, "pause_routine", None))
+            and callable(getattr(self.rest_device, "resume_routine", None))
+        ):
             features |= MediaPlayerEntityFeature.PAUSE
         self._attr_supported_features = features
         self._attr_extra_state_attributes = {}
 
     @property
     def state(self) -> MediaPlayerState | None:
-        if isinstance(self.rest_device, RestoreV5) and self.rest_device.is_paused:
+        if isinstance(self.rest_device, RestoreV5) and getattr(self.rest_device, "is_paused", False):
             return STATE_PAUSED
         if self.rest_device.is_playing:
             return STATE_PLAYING
@@ -120,9 +125,11 @@ class MediaRiotEntity(HatchEntity, MediaPlayerEntity):
 
     def media_play(self) -> None:
         _LOGGER.debug("media play")
-        if isinstance(self.rest_device, RestoreV5) and self.rest_device.is_paused:
-            self.rest_device.resume_routine()
-            return
+        if isinstance(self.rest_device, RestoreV5) and getattr(self.rest_device, "is_paused", False):
+            resume_routine = getattr(self.rest_device, "resume_routine", None)
+            if callable(resume_routine):
+                resume_routine()
+                return
         if self.rest_device.is_playing:
             _LOGGER.debug("media player already playing")
             return
@@ -133,7 +140,9 @@ class MediaRiotEntity(HatchEntity, MediaPlayerEntity):
     def media_pause(self) -> None:
         _LOGGER.debug("media pause")
         if isinstance(self.rest_device, RestoreV5):
-            self.rest_device.pause_routine()
+            pause_routine = getattr(self.rest_device, "pause_routine", None)
+            if callable(pause_routine):
+                pause_routine()
 
     def select_sound_mode(self, sound_mode: str) -> None:
         _LOGGER.debug("Select sound mode: %s", sound_mode)
